@@ -14,6 +14,7 @@ from django.utils.translation import gettext as _
 from adminactions.forms import GenericActionForm
 from adminactions.models import get_permission_codename
 from adminactions.utils import clone_instance
+from adminactions import api
 
 
 class MergeForm(GenericActionForm):
@@ -99,10 +100,13 @@ def merge(modeladmin, request, queryset):
         formset = formset_factory(OForm)(initial=[model_to_dict(master), model_to_dict(other)])
         with transaction.commit_manually():
             form = MForm(request.POST, instance=master)
-            other.delete()
+            # inhibit delte call for permit api call
+            #~ other.delete()
             if form.is_valid():
                 form.save()
                 transaction.commit()
+                # force api call for related and m2m copying
+                api.merge(master, other, fields=('id',), commit=True, m2m=-999, related=-999)
                 return HttpResponseRedirect(request.path)
             else:
                 messages.error(request, form.errors)
